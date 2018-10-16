@@ -1,9 +1,23 @@
 {{define "tags"}}
 {{template "header" .}}
+<div class="container-fluid">
+<table class="table table-striped table-hover">
+    <thead>
+        <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Actions</th>
+        </tr>
+    </theaad>
+    <tbody>
     {{range .Tags}}
-        <div>
-            <a href="{{$.Repository}}/{{.}}">{{.}}</a>
-        </div>
+        <tr>
+            <th scope="row"><a href="{{$.Repository}}/{{.}}">{{.}}</a></th>
+            <td>Unknown</td>
+        </tr>
     {{end}}
+    </tbody>
+</table>
+</div>
+
 {{template "footer" .}}
 {{end}}

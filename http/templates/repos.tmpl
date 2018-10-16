@@ -6,13 +6,15 @@
         <tr>
             <th scope="col">Name</th>
             <th scope="col">Number of tags</th>
+            <th scope="col">Actions</th>
         </tr>
     </theaad>
     <tbody>
     {{range .Repositories}}
         <tr>
             <th scope="row"><a href="{{$.Registry}}/{{.}}">{{.}}</a></td>
-            <td class="col-sm">Unknown</td>
+            <td>Unknown</td>
+            <td>None</td>
         </tr>
     {{end}}
     </tbody>

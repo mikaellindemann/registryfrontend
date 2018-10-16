@@ -80,7 +80,7 @@ func NewServer(l *logrus.Logger, s registry_frontend.Storage) Server {
 }
 
 func overview(s registry_frontend.Storage) http.HandlerFunc {
-	t := template.Must(template.New("registries").ParseFiles("http/templates/registries.tmpl", "http/templates/header.tmpl", "http/templates/footer.tmpl"))
+	t := template.Must(template.New("registries").ParseFiles("http/templates/registries.tmpl", "http/templates/header.tmpl", "http/templates/footer.tmpl", "http/templates/menu/menu-registries.tmpl"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
@@ -192,7 +192,7 @@ func removeRegistry(s registry_frontend.Storage) http.HandlerFunc {
 
 func repoOverview(s registry_frontend.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		t := template.Must(template.New("repos").ParseFiles("http/templates/repos.tmpl", "http/templates/header.tmpl", "http/templates/footer.tmpl"))
+		t := template.Must(template.New("repos").ParseFiles("http/templates/repos.tmpl", "http/templates/header.tmpl", "http/templates/footer.tmpl", "http/templates/menu/menu-repos.tmpl"))
 		if r.Method != http.MethodGet {
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 			return
@@ -233,7 +233,7 @@ func repoOverview(s registry_frontend.Storage) http.HandlerFunc {
 }
 
 func tagOverview(s registry_frontend.Storage) http.HandlerFunc {
-	t := template.Must(template.New("tags").ParseFiles("http/templates/tags.tmpl", "http/templates/header.tmpl", "http/templates/footer.tmpl"))
+	t := template.Must(template.New("tags").ParseFiles("http/templates/tags.tmpl", "http/templates/header.tmpl", "http/templates/footer.tmpl", "http/templates/menu/menu-tags.tmpl"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
@@ -258,10 +258,12 @@ func tagOverview(s registry_frontend.Storage) http.HandlerFunc {
 
 		err = t.Execute(w, struct {
 			Title string
+			Registry string
 			Repository string
 			Tags []string
 		}{
 			Title: "Tags",
+			Registry: vars["registry"],
 			Repository: vars["repo"],
 			Tags: tags,
 		})
@@ -274,6 +276,7 @@ func tagOverview(s registry_frontend.Storage) http.HandlerFunc {
 }
 
 func tagDetail(s registry_frontend.Storage) http.HandlerFunc {
+	t := template.Must(template.New("tagdetails").ParseFiles("http/templates/tagdetails.tmpl", "http/templates/header.tmpl", "http/templates/footer.tmpl", "http/templates/menu/menu-tag-details.tmpl"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
@@ -289,20 +292,58 @@ func tagDetail(s registry_frontend.Storage) http.HandlerFunc {
 			return
 		}
 
-		t, err := reg.Tag(r.Context(), vars["repo"], vars["tag"])
+		tag, err := reg.Tag(r.Context(), vars["repo"], vars["tag"])
 
 		if err != nil {
 			http.Error(w, errors.Wrap(err, http.StatusText(http.StatusNotFound)).Error(), http.StatusNotFound)
 			return
 		}
 
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
 
-		err = enc.Encode(t)
+
+
+		err = t.Execute(w, struct {
+			Title string
+			Registry string
+			Repository string
+			Tag string
+			Created string
+			DockerVersion string
+			Size string
+			Layers int
+			User string
+			Ports string
+			Volumes string
+		}{
+			Title:         "Tag details",
+			Registry:      vars["registry"],
+			Repository:    vars["repo"],
+			Tag:           vars["tag"],
+			Created:       tag.Created.Format("January 2 2006 15:04:05 "),
+			DockerVersion: tag.DockerVersion,
+			Size:          sizeToString(tag.Size),
+			Layers:        tag.Layers,
+			User:          tag.User,
+			Volumes:       fmt.Sprint(tag.Volumes),
+			Ports:         fmt.Sprint(tag.ExposedPorts),
+		})
 
 		if err != nil {
-			http.Error(w, errors.Wrap(err, http.StatusText(http.StatusInternalServerError)).Error(), http.StatusInternalServerError)
+			// TODO: Log this error
+			fmt.Println(err)
 		}
 	}
+}
+
+func sizeToString(byteCount int64) string {
+
+
+	if gb := float64(byteCount) / 1024.0 / 1024.0 / 1024.0; gb >= 1.0 {
+		return fmt.Sprintf("%.2f GB", gb)
+	} else if mb := float64(byteCount) / 1024.0 / 1024.0; mb >= 1.0 {
+		return fmt.Sprintf("%.2f MB", mb)
+	} else if kb := float64(byteCount) / 1024.0; kb >= 1.0 {
+		return fmt.Sprintf("%.2f KB", kb)
+	}
+	return fmt.Sprintf("%d B", byteCount)
 }
