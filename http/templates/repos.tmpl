@@ -1,0 +1,22 @@
+{{define "repos"}}
+{{template "header" .}}
+<div class="container-fluid">
+<table class="table table-striped table-hover">
+    <thead>
+        <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Number of tags</th>
+        </tr>
+    </theaad>
+    <tbody>
+    {{range .Repositories}}
+        <tr>
+            <th scope="row"><a href="{{$.Registry}}/{{.}}">{{.}}</a></td>
+            <td class="col-sm">Unknown</td>
+        </tr>
+    {{end}}
+    </tbody>
+</table>
+</div>
+{{template "footer" .}}
+{{end}}

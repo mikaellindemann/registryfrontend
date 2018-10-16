@@ -1,0 +1,9 @@
+{{define "tags"}}
+{{template "header" .}}
+    {{range .Tags}}
+        <div>
+            <a href="{{$.Repository}}/{{.}}">{{.}}</a>
+        </div>
+    {{end}}
+{{template "footer" .}}
+{{end}}
