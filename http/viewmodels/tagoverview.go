@@ -1,10 +1,10 @@
 package viewmodels
 
 type TagOverviewInfo struct {
-	Name string
+	Name    string
 	Created string
-	Size string
-	Layers int
+	Size    string
+	Layers  int
 }
 
 type TagOverview struct {

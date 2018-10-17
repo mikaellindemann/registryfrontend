@@ -1,7 +1,7 @@
 package viewmodels
 
 type Repository struct {
-	Name string
+	Name         string
 	NumberOfTags int
 }
 

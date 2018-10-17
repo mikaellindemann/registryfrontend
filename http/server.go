@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/mikaellindemann/templateloader"
 	"html/template"
 	"net/http"
-	"registry-frontend"
 	"registry-frontend/http/viewmodels"
 	"sort"
 	"time"
+
+	"github.com/mikaellindemann/templateloader"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -112,15 +112,15 @@ func overview(tl templateloader.Loader, s registry_frontend.Storage) (http.Handl
 				repos, err := reg.Repositories(r.Context())
 
 				regs = append(regs, viewmodels.Registry{
-					Name: reg.Name,
-					URL: reg.Url,
-					Online: err == nil,
+					Name:          reg.Name,
+					URL:           reg.Url,
+					Online:        err == nil,
 					NumberOfRepos: len(repos),
 				})
 			}
 
 			err = t.Execute(w, viewmodels.Overview{
-				Title: "Registries",
+				Title:      "Registries",
 				Registries: regs,
 			})
 
@@ -253,7 +253,7 @@ func repoOverview(tl templateloader.Loader, s registry_frontend.Storage) (http.H
 				}
 
 				reps = append(reps, viewmodels.Repository{
-					Name: repo,
+					Name:         repo,
 					NumberOfTags: len(ti),
 				})
 			}
@@ -309,21 +309,20 @@ func tagOverview(tl templateloader.Loader, s registry_frontend.Storage) (http.Ha
 				}
 
 				tags = append(tags, viewmodels.TagOverviewInfo{
-					Name: tag,
-					Created:       ti.Created.Format("January 2 2006 15:04:05"),
-					Size:          sizeToString(ti.Size),
-					Layers:        ti.Layers,
+					Name:    tag,
+					Created: ti.Created.Format("January 2 2006 15:04:05"),
+					Size:    sizeToString(ti.Size),
+					Layers:  ti.Layers,
 				})
 			}
 
-			sort.Slice(tags, func(i,j int) bool {
+			sort.Slice(tags, func(i, j int) bool {
 				// Errors ignored as the strings were created by applying this format.
 				t1, _ := time.Parse("January 2 2006 15:04:05", tags[i].Created)
 				t2, _ := time.Parse("January 2 2006 15:04:05", tags[j].Created)
 
 				return t2.Before(t1)
 			})
-
 
 			err = t.Execute(w, viewmodels.TagOverview{
 				Title:      "Tags",

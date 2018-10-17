@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/docker/distribution"
-	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 

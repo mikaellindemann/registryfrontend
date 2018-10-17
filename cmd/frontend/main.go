@@ -1,13 +1,13 @@
 package main
 
 import (
-	"github.com/mikaellindemann/templateloader"
 	"os"
 	"os/signal"
-	"registry-frontend"
 	"registry-frontend/http"
 	"strings"
 	"syscall"
+
+	"github.com/mikaellindemann/templateloader"
 
 	"github.com/sirupsen/logrus"
 )

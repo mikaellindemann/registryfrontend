@@ -1,9 +1,9 @@
 package viewmodels
 
 type Registry struct {
-	Name string
-	URL string
-	Online bool
+	Name          string
+	URL           string
+	Online        bool
 	NumberOfRepos int
 }
 
