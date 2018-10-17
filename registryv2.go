@@ -3,12 +3,13 @@ package registry_frontend
 import (
 	"context"
 	"encoding/json"
+	"io"
+	"time"
+
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/registry/client"
 	"github.com/pkg/errors"
-	"io"
-	"time"
 )
 
 func (r Registry) Repositories(ctx context.Context) ([]string, error) {
@@ -142,15 +143,4 @@ type tagInfo struct {
 	Created       time.Time `json:"created"`
 	Config        config    `json:"config"`
 	DockerVersion string    `json:"docker_version"`
-}
-
-type TagInfo struct {
-	Created       time.Time
-	DockerVersion string
-	EntryPoint    []string
-	ExposedPorts  []string
-	Layers        int
-	Size          int64
-	User          string
-	Volumes       []string
 }

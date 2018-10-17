@@ -2,6 +2,7 @@ package registry_frontend
 
 import (
 	"context"
+
 	"github.com/docker/distribution"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -24,5 +25,3 @@ func CacheOrGetLayerSize(ctx context.Context, rs distribution.Repository, d dige
 
 	return blob.Size, nil
 }
-
-

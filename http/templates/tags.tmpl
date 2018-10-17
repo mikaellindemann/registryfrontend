@@ -1,23 +1,26 @@
-{{define "tags"}}
-{{template "header" .}}
+{{define "content"}}
 <div class="container-fluid">
 <table class="table table-striped table-hover">
     <thead>
         <tr>
             <th scope="col">Name</th>
+            <th scope="col">Created</th>
+            <th scope="col">Size</th>
+            <th scope="col">Number of layers</th>
             <th scope="col">Actions</th>
         </tr>
     </theaad>
     <tbody>
     {{range .Tags}}
         <tr>
-            <th scope="row"><a href="{{$.Repository}}/{{.}}">{{.}}</a></th>
-            <td>Unknown</td>
+            <th scope="row"><a href="{{$.Repository}}/{{.Name}}">{{.Name}}</a></th>
+            <td>{{.Created}}</td>
+            <td>{{.Size}}</td>
+            <td>{{.Layers}}</td>
+            <td>None</td>
         </tr>
     {{end}}
     </tbody>
 </table>
 </div>
-
-{{template "footer" .}}
 {{end}}

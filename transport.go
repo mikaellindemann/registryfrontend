@@ -25,8 +25,8 @@ func (t *basicTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 func NewBasicAuthRoundTripper(url, user, password string) http.RoundTripper {
 	return &basicTransport{
 		Transport: http.DefaultTransport,
-		URL: url,
-		Username: user,
-		Password: password,
+		URL:       url,
+		Username:  user,
+		Password:  password,
 	}
 }

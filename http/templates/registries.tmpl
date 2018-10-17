@@ -1,5 +1,4 @@
-{{define "registries"}}
-{{template "header" .}}
+{{define "content"}}
 <div class="container-fluid">
     <table class="table table-striped table-hover">
         <thead>
@@ -18,13 +17,13 @@
                     <a href="registry/{{.Name}}">{{.Name}}</a>
                 </th>
                 <td>
-                    {{.Url}}
+                    {{.URL}}
                 </td>
                 <td>
-                    Unknown
+                    {{.Online}}
                 </td>
                 <td>
-                    Unknown
+                    {{.NumberOfRepos}}
                 </td>
                 <td>
                     None
@@ -34,5 +33,4 @@
         </tbody>
     </table>
 </div>
-{{template "footer" .}}
 {{end}}

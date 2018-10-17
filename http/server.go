@@ -4,13 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"github.com/mikaellindemann/templateloader"
 	"html/template"
 	"net/http"
 	"registry-frontend"
+	"registry-frontend/http/viewmodels"
+	"sort"
 	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 type Server interface {
@@ -46,10 +50,17 @@ func (s *server) Shutdown() error {
 	return s.s.Shutdown(ctx)
 }
 
-func NewServer(l *logrus.Logger, s registry_frontend.Storage) Server {
+func must(h http.HandlerFunc, err error) http.HandlerFunc {
+	if err != nil {
+		panic(err)
+	}
+	return h
+}
+
+func NewServer(l *logrus.Logger, t templateloader.Loader, s registry_frontend.Storage) Server {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/", overview(s)).Methods(http.MethodGet)
+	router.HandleFunc("/", must(overview(t, s))).Methods(http.MethodGet)
 	router.HandleFunc("/test_connection", testConnection()).Methods(http.MethodPost)
 
 	router.HandleFunc("/add_registry", addRegistryGet()).Methods(http.MethodGet)
@@ -64,11 +75,11 @@ func NewServer(l *logrus.Logger, s registry_frontend.Storage) Server {
 
 	//router.HandleFunc("/delete_tag", deleteTag(s)).Methods(http.MethodPost)
 
-	router.HandleFunc("/registry/{registry}", repoOverview(s)).Methods(http.MethodGet)
+	router.HandleFunc("/registry/{registry}", must(repoOverview(t, s))).Methods(http.MethodGet)
 
-	router.HandleFunc("/registry/{registry}/{repo}", tagOverview(s)).Methods(http.MethodGet)
+	router.HandleFunc("/registry/{registry}/{repo}", must(tagOverview(t, s))).Methods(http.MethodGet)
 
-	router.HandleFunc("/registry/{registry}/{repo}/{tag}", tagDetail(s)).Methods(http.MethodGet)
+	router.HandleFunc("/registry/{registry}/{repo}/{tag}", must(tagDetail(t, s))).Methods(http.MethodGet)
 
 	return &server{
 		s: http.Server{
@@ -79,31 +90,47 @@ func NewServer(l *logrus.Logger, s registry_frontend.Storage) Server {
 	}
 }
 
-func overview(s registry_frontend.Storage) http.HandlerFunc {
-	t := template.Must(template.New("registries").ParseFiles("http/templates/registries.tmpl", "http/templates/header.tmpl", "http/templates/footer.tmpl", "http/templates/menu/menu-registries.tmpl"))
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-			return
-		}
+func overview(tl templateloader.Loader, s registry_frontend.Storage) (http.HandlerFunc, error) {
+	return tl.Load(
+		"layout",
+		func(t *template.Template, w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodGet {
+				http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+				return
+			}
 
-		rs, err := s.Registries()
+			rs, err := s.Registries()
 
-		if err != nil {
-			http.Error(w, errors.Wrap(err, http.StatusText(http.StatusInternalServerError)).Error(), http.StatusInternalServerError)
-			return
-		}
+			if err != nil {
+				http.Error(w, errors.Wrap(err, http.StatusText(http.StatusInternalServerError)).Error(), http.StatusInternalServerError)
+				return
+			}
 
-		err = t.Execute(w, struct {
-			Title      string
-			Registries []registry_frontend.Registry
-		}{Title: "Registries", Registries: rs})
+			regs := make([]viewmodels.Registry, 0, len(rs))
 
-		if err != nil {
-			// TODO: Log this error
-			fmt.Println(err)
-		}
-	}
+			for _, reg := range rs {
+				repos, err := reg.Repositories(r.Context())
+
+				regs = append(regs, viewmodels.Registry{
+					Name: reg.Name,
+					URL: reg.Url,
+					Online: err == nil,
+					NumberOfRepos: len(repos),
+				})
+			}
+
+			err = t.Execute(w, viewmodels.Overview{
+				Title: "Registries",
+				Registries: regs,
+			})
+
+			if err != nil {
+				// TODO: Log this error
+				fmt.Println(err)
+			}
+		},
+		"http/templates/registries.tmpl", "http/templates/layout.tmpl", "http/templates/menu/menu-registries.tmpl",
+	)
 }
 
 func testConnection() http.HandlerFunc {
@@ -190,153 +217,191 @@ func removeRegistry(s registry_frontend.Storage) http.HandlerFunc {
 //	return nil
 //}
 
-func repoOverview(s registry_frontend.Storage) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		t := template.Must(template.New("repos").ParseFiles("http/templates/repos.tmpl", "http/templates/header.tmpl", "http/templates/footer.tmpl", "http/templates/menu/menu-repos.tmpl"))
-		if r.Method != http.MethodGet {
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-			return
-		}
+func repoOverview(tl templateloader.Loader, s registry_frontend.Storage) (http.HandlerFunc, error) {
+	return tl.Load(
+		"layout",
+		func(t *template.Template, w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodGet {
+				http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+				return
+			}
 
-		vars := mux.Vars(r)
+			vars := mux.Vars(r)
 
-		reg, err := s.Registry(vars["registry"])
+			reg, err := s.Registry(vars["registry"])
 
-		if err != nil {
-			http.Error(w, errors.Wrap(err, http.StatusText(http.StatusNotFound)).Error(), http.StatusNotFound)
-			return
-		}
+			if err != nil {
+				http.Error(w, errors.Wrap(err, http.StatusText(http.StatusNotFound)).Error(), http.StatusNotFound)
+				return
+			}
 
-		repos, err := reg.Repositories(r.Context())
+			repos, err := reg.Repositories(r.Context())
 
-		if err != nil {
-			http.Error(w, errors.Wrap(err, http.StatusText(http.StatusBadRequest)).Error(), http.StatusBadRequest)
-			return
-		}
+			if err != nil {
+				http.Error(w, errors.Wrap(err, http.StatusText(http.StatusBadRequest)).Error(), http.StatusBadRequest)
+				return
+			}
 
-		err = t.Execute(w, struct {
-			Title string
-			Registry string
-			Repositories []string
-		}{
-			Title: "Repositories",
-			Registry: reg.Name,
-			Repositories: repos,
-		})
+			reps := make([]viewmodels.Repository, 0, len(repos))
 
+			for _, repo := range repos {
+				ti, err := reg.Tags(r.Context(), repo)
 
-		if err != nil {
-			// TODO: Log this error
-			fmt.Println(err)
-		}
-	}
+				if err != nil {
+					http.Error(w, fmt.Sprintf("%+v", errors.WithStack(errors.Wrap(err, "failed fetching repository details"))), http.StatusInternalServerError)
+					return
+				}
+
+				reps = append(reps, viewmodels.Repository{
+					Name: repo,
+					NumberOfTags: len(ti),
+				})
+			}
+
+			err = t.Execute(w, viewmodels.RegistryDetail{
+				Title:        "Repositories",
+				Registry:     reg.Name,
+				Repositories: reps,
+			})
+
+			if err != nil {
+				// TODO: Log this error
+				fmt.Println(err)
+			}
+		},
+		"http/templates/repos.tmpl", "http/templates/layout.tmpl", "http/templates/menu/menu-repos.tmpl",
+	)
 }
 
-func tagOverview(s registry_frontend.Storage) http.HandlerFunc {
-	t := template.Must(template.New("tags").ParseFiles("http/templates/tags.tmpl", "http/templates/header.tmpl", "http/templates/footer.tmpl", "http/templates/menu/menu-tags.tmpl"))
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-			return
-		}
+func tagOverview(tl templateloader.Loader, s registry_frontend.Storage) (http.HandlerFunc, error) {
+	return tl.Load(
+		"layout",
+		func(t *template.Template, w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodGet {
+				http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+				return
+			}
 
-		vars := mux.Vars(r)
+			vars := mux.Vars(r)
 
-		reg, err := s.Registry(vars["registry"])
+			reg, err := s.Registry(vars["registry"])
 
-		if err != nil {
-			http.Error(w, errors.Wrap(err, http.StatusText(http.StatusNotFound)).Error(), http.StatusNotFound)
-			return
-		}
+			if err != nil {
+				http.Error(w, errors.Wrap(err, http.StatusText(http.StatusNotFound)).Error(), http.StatusNotFound)
+				return
+			}
 
-		tags, err := reg.Tags(r.Context(), vars["repo"])
+			ts, err := reg.Tags(r.Context(), vars["repo"])
 
-		if err != nil {
-			http.Error(w, errors.Wrap(err, http.StatusText(http.StatusNotFound)).Error(), http.StatusNotFound)
-			return
-		}
+			if err != nil {
+				http.Error(w, errors.Wrap(err, http.StatusText(http.StatusNotFound)).Error(), http.StatusNotFound)
+				return
+			}
 
-		err = t.Execute(w, struct {
-			Title string
-			Registry string
-			Repository string
-			Tags []string
-		}{
-			Title: "Tags",
-			Registry: vars["registry"],
-			Repository: vars["repo"],
-			Tags: tags,
-		})
+			tags := make([]viewmodels.TagOverviewInfo, 0, len(ts))
 
-		if err != nil {
-			// TODO: Log this error
-			fmt.Println(err)
-		}
-	}
+			for _, tag := range ts {
+				ti, err := reg.Tag(r.Context(), vars["repo"], tag)
+
+				if err != nil {
+					http.Error(w, fmt.Sprintf("%+v", errors.WithStack(errors.Wrap(err, "failed fetching tag information"))), http.StatusInternalServerError)
+					return
+				}
+
+				tags = append(tags, viewmodels.TagOverviewInfo{
+					Name: tag,
+					Created:       ti.Created.Format("January 2 2006 15:04:05"),
+					Size:          sizeToString(ti.Size),
+					Layers:        ti.Layers,
+				})
+			}
+
+			sort.Slice(tags, func(i,j int) bool {
+				// Errors ignored as the strings were created by applying this format.
+				t1, _ := time.Parse("January 2 2006 15:04:05", tags[i].Created)
+				t2, _ := time.Parse("January 2 2006 15:04:05", tags[j].Created)
+
+				return t2.Before(t1)
+			})
+
+
+			err = t.Execute(w, viewmodels.TagOverview{
+				Title:      "Tags",
+				Registry:   vars["registry"],
+				Repository: vars["repo"],
+				Tags:       tags,
+			})
+
+			if err != nil {
+				// TODO: Log this error
+				fmt.Println(err)
+			}
+		},
+		"http/templates/tags.tmpl", "http/templates/layout.tmpl", "http/templates/menu/menu-tags.tmpl",
+	)
 }
 
-func tagDetail(s registry_frontend.Storage) http.HandlerFunc {
-	t := template.Must(template.New("tagdetails").ParseFiles("http/templates/tagdetails.tmpl", "http/templates/header.tmpl", "http/templates/footer.tmpl", "http/templates/menu/menu-tag-details.tmpl"))
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-			return
-		}
+func tagDetail(tl templateloader.Loader, s registry_frontend.Storage) (http.HandlerFunc, error) {
+	return tl.Load(
+		"layout",
+		func(t *template.Template, w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodGet {
+				http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+				return
+			}
 
-		vars := mux.Vars(r)
+			vars := mux.Vars(r)
 
-		reg, err := s.Registry(vars["registry"])
+			reg, err := s.Registry(vars["registry"])
 
-		if err != nil {
-			http.Error(w, errors.Wrap(err, http.StatusText(http.StatusNotFound)).Error(), http.StatusNotFound)
-			return
-		}
+			if err != nil {
+				http.Error(w, errors.Wrap(err, http.StatusText(http.StatusNotFound)).Error(), http.StatusNotFound)
+				return
+			}
 
-		tag, err := reg.Tag(r.Context(), vars["repo"], vars["tag"])
+			tag, err := reg.Tag(r.Context(), vars["repo"], vars["tag"])
 
-		if err != nil {
-			http.Error(w, errors.Wrap(err, http.StatusText(http.StatusNotFound)).Error(), http.StatusNotFound)
-			return
-		}
+			if err != nil {
+				http.Error(w, errors.Wrap(err, http.StatusText(http.StatusNotFound)).Error(), http.StatusNotFound)
+				return
+			}
 
+			err = t.Execute(w, struct {
+				Title         string
+				Registry      string
+				Repository    string
+				Tag           string
+				Created       string
+				DockerVersion string
+				Size          string
+				Layers        int
+				User          string
+				Ports         string
+				Volumes       string
+			}{
+				Title:         "Tag details",
+				Registry:      vars["registry"],
+				Repository:    vars["repo"],
+				Tag:           vars["tag"],
+				Created:       tag.Created.Format("January 2 2006 15:04:05 "),
+				DockerVersion: tag.DockerVersion,
+				Size:          sizeToString(tag.Size),
+				Layers:        tag.Layers,
+				User:          tag.User,
+				Volumes:       fmt.Sprint(tag.Volumes),
+				Ports:         fmt.Sprint(tag.ExposedPorts),
+			})
 
-
-
-		err = t.Execute(w, struct {
-			Title string
-			Registry string
-			Repository string
-			Tag string
-			Created string
-			DockerVersion string
-			Size string
-			Layers int
-			User string
-			Ports string
-			Volumes string
-		}{
-			Title:         "Tag details",
-			Registry:      vars["registry"],
-			Repository:    vars["repo"],
-			Tag:           vars["tag"],
-			Created:       tag.Created.Format("January 2 2006 15:04:05 "),
-			DockerVersion: tag.DockerVersion,
-			Size:          sizeToString(tag.Size),
-			Layers:        tag.Layers,
-			User:          tag.User,
-			Volumes:       fmt.Sprint(tag.Volumes),
-			Ports:         fmt.Sprint(tag.ExposedPorts),
-		})
-
-		if err != nil {
-			// TODO: Log this error
-			fmt.Println(err)
-		}
-	}
+			if err != nil {
+				// TODO: Log this error
+				fmt.Println(err)
+			}
+		},
+		"http/templates/tagdetails.tmpl", "http/templates/layout.tmpl", "http/templates/menu/menu-tag-details.tmpl",
+	)
 }
 
 func sizeToString(byteCount int64) string {
-
 
 	if gb := float64(byteCount) / 1024.0 / 1024.0 / 1024.0; gb >= 1.0 {
 		return fmt.Sprintf("%.2f GB", gb)

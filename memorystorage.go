@@ -1,8 +1,9 @@
 package registry_frontend
 
 import (
-	"github.com/pkg/errors"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 type memoryStorage map[string]Registry
