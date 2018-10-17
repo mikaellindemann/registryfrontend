@@ -3,10 +3,11 @@ package main
 import (
 	"os"
 	"os/signal"
-	"registry-frontend/http"
 	"strings"
 	"syscall"
 
+	"github.com/mikaellindemann/registryfrontend"
+	"github.com/mikaellindemann/registryfrontend/http"
 	"github.com/mikaellindemann/templateloader"
 
 	"github.com/sirupsen/logrus"
@@ -29,7 +30,7 @@ func main() {
 		},
 	}
 
-	storage := registry_frontend.NewInMemoryStorage()
+	storage := registryfrontend.NewInMemoryStorage()
 
 	name := os.Getenv("REGISTRY_NAME")
 	url := os.Getenv("REGISTRY_URL")
@@ -37,7 +38,7 @@ func main() {
 	password := os.Getenv("REGISTRY_AUTH_BASIC_PASSWORD")
 
 	if name != "" && url != "" {
-		storage.Add(registry_frontend.Registry{
+		storage.Add(registryfrontend.Registry{
 			Name:     name,
 			Url:      url,
 			User:     user,

@@ -1,4 +1,4 @@
-module registry-frontend
+module github.com/mikaellindemann/registryfrontend
 
 replace github.com/prometheus/client_golang v0.8.0 => github.com/prometheus/client_golang v0.0.0-20181014111700-7866eead363e
 

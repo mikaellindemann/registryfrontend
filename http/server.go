@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"registry-frontend/http/viewmodels"
 	"sort"
 	"time"
 
+	"github.com/mikaellindemann/registryfrontend"
+	"github.com/mikaellindemann/registryfrontend/http/viewmodels"
 	"github.com/mikaellindemann/templateloader"
 
 	"github.com/gorilla/mux"
@@ -57,7 +58,7 @@ func must(h http.HandlerFunc, err error) http.HandlerFunc {
 	return h
 }
 
-func NewServer(l *logrus.Logger, t templateloader.Loader, s registry_frontend.Storage) Server {
+func NewServer(l *logrus.Logger, t templateloader.Loader, s registryfrontend.Storage) Server {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/", must(overview(t, s))).Methods(http.MethodGet)
@@ -90,7 +91,7 @@ func NewServer(l *logrus.Logger, t templateloader.Loader, s registry_frontend.St
 	}
 }
 
-func overview(tl templateloader.Loader, s registry_frontend.Storage) (http.HandlerFunc, error) {
+func overview(tl templateloader.Loader, s registryfrontend.Storage) (http.HandlerFunc, error) {
 	return tl.Load(
 		"layout",
 		func(t *template.Template, w http.ResponseWriter, r *http.Request) {
@@ -140,7 +141,7 @@ func testConnection() http.HandlerFunc {
 			return
 		}
 
-		reg := registry_frontend.Registry{}
+		reg := registryfrontend.Registry{}
 
 		err := json.NewDecoder(r.Body).Decode(&reg)
 
@@ -165,29 +166,29 @@ func addRegistryGet() http.HandlerFunc {
 	return nil
 }
 
-func addRegistryPost(s registry_frontend.Storage) http.HandlerFunc {
+func addRegistryPost(s registryfrontend.Storage) http.HandlerFunc {
 	// POST only
 	return nil
 }
 
-//func updateRegistryGet(s registry_frontend.Storage) http.HandlerFunc {
+//func updateRegistryGet(s registryfrontend.Storage) http.HandlerFunc {
 //	// GET Only
 //	return nil
 //}
 //
-//func updateRegistryPost(s registry_frontend.Storage) http.HandlerFunc {
+//func updateRegistryPost(s registryfrontend.Storage) http.HandlerFunc {
 //	// POST Only
 //	return nil
 //}
 
-func removeRegistry(s registry_frontend.Storage) http.HandlerFunc {
+func removeRegistry(s registryfrontend.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 			return
 		}
 
-		reg := registry_frontend.Registry{}
+		reg := registryfrontend.Registry{}
 
 		err := json.NewDecoder(r.Body).Decode(&reg)
 
@@ -207,17 +208,17 @@ func removeRegistry(s registry_frontend.Storage) http.HandlerFunc {
 	}
 }
 
-//func deleteRepo(s registry_frontend.Storage) http.HandlerFunc {
+//func deleteRepo(s registryfrontend.Storage) http.HandlerFunc {
 //	// POST only
 //	return nil
 //}
 //
-//func deleteTag(s registry_frontend.Storage) http.HandlerFunc {
+//func deleteTag(s registryfrontend.Storage) http.HandlerFunc {
 //	// POST only
 //	return nil
 //}
 
-func repoOverview(tl templateloader.Loader, s registry_frontend.Storage) (http.HandlerFunc, error) {
+func repoOverview(tl templateloader.Loader, s registryfrontend.Storage) (http.HandlerFunc, error) {
 	return tl.Load(
 		"layout",
 		func(t *template.Template, w http.ResponseWriter, r *http.Request) {
@@ -273,7 +274,7 @@ func repoOverview(tl templateloader.Loader, s registry_frontend.Storage) (http.H
 	)
 }
 
-func tagOverview(tl templateloader.Loader, s registry_frontend.Storage) (http.HandlerFunc, error) {
+func tagOverview(tl templateloader.Loader, s registryfrontend.Storage) (http.HandlerFunc, error) {
 	return tl.Load(
 		"layout",
 		func(t *template.Template, w http.ResponseWriter, r *http.Request) {
@@ -340,7 +341,7 @@ func tagOverview(tl templateloader.Loader, s registry_frontend.Storage) (http.Ha
 	)
 }
 
-func tagDetail(tl templateloader.Loader, s registry_frontend.Storage) (http.HandlerFunc, error) {
+func tagDetail(tl templateloader.Loader, s registryfrontend.Storage) (http.HandlerFunc, error) {
 	return tl.Load(
 		"layout",
 		func(t *template.Template, w http.ResponseWriter, r *http.Request) {

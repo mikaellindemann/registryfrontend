@@ -1,4 +1,4 @@
-package registry_frontend
+package registryfrontend
 
 type Storage interface {
 	Registries() ([]Registry, error)

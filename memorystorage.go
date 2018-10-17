@@ -1,4 +1,4 @@
-package registry_frontend
+package registryfrontend
 
 import (
 	"strings"
