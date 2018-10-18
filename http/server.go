@@ -61,26 +61,26 @@ func must(h http.HandlerFunc, err error) http.HandlerFunc {
 func NewServer(l *logrus.Logger, t templateloader.Loader, s registryfrontend.Storage) Server {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/", must(overview(t, s))).Methods(http.MethodGet)
+	router.HandleFunc("/", must(overview(l, t, s))).Methods(http.MethodGet)
 	router.HandleFunc("/test_connection", testConnection()).Methods(http.MethodPost)
 
-	router.HandleFunc("/add_registry", addRegistryGet()).Methods(http.MethodGet)
+	router.HandleFunc("/add_registry", must(addRegistryGet(l, t))).Methods(http.MethodGet)
 	router.HandleFunc("/add_registry", addRegistryPost(s)).Methods(http.MethodPost)
 
 	//router.HandleFunc("/update_registry", updateRegistryGet(s)).Methods(http.MethodGet)
 	//router.HandleFunc("/update_registry", updateRegistryPost(s)).Methods(http.MethodPost)
 
-	router.HandleFunc("/remove_registry", removeRegistry(s)).Methods(http.MethodPost)
+	router.HandleFunc("/remove_registry", removeRegistry(l, s)).Methods(http.MethodPost)
 
 	//router.HandleFunc("/delete_repo", deleteRepo(s)).Methods(http.MethodPost)
 
 	//router.HandleFunc("/delete_tag", deleteTag(s)).Methods(http.MethodPost)
 
-	router.HandleFunc("/registry/{registry}", must(repoOverview(t, s))).Methods(http.MethodGet)
+	router.HandleFunc("/registry/{registry}", must(repoOverview(l, t, s))).Methods(http.MethodGet)
 
-	router.HandleFunc("/registry/{registry}/{repo}", must(tagOverview(t, s))).Methods(http.MethodGet)
+	router.HandleFunc("/registry/{registry}/{repo}", must(tagOverview(l, t, s))).Methods(http.MethodGet)
 
-	router.HandleFunc("/registry/{registry}/{repo}/{tag}", must(tagDetail(t, s))).Methods(http.MethodGet)
+	router.HandleFunc("/registry/{registry}/{repo}/{tag}", must(tagDetail(l, t, s))).Methods(http.MethodGet)
 
 	return &server{
 		s: http.Server{
@@ -91,7 +91,7 @@ func NewServer(l *logrus.Logger, t templateloader.Loader, s registryfrontend.Sto
 	}
 }
 
-func overview(tl templateloader.Loader, s registryfrontend.Storage) (http.HandlerFunc, error) {
+func overview(l *logrus.Logger, tl templateloader.Loader, s registryfrontend.Storage) (http.HandlerFunc, error) {
 	return tl.Load(
 		"layout",
 		func(t *template.Template, w http.ResponseWriter, r *http.Request) {
@@ -126,8 +126,7 @@ func overview(tl templateloader.Loader, s registryfrontend.Storage) (http.Handle
 			})
 
 			if err != nil {
-				// TODO: Log this error
-				fmt.Println(err)
+				l.Errorf("%+v", err)
 			}
 		},
 		"http/templates/registries.tmpl", "http/templates/layout.tmpl", "http/templates/menu/menu-registries.tmpl",
@@ -161,14 +160,60 @@ func testConnection() http.HandlerFunc {
 	}
 }
 
-func addRegistryGet() http.HandlerFunc {
-	// GET only
-	return nil
+func addRegistryGet(l *logrus.Logger, tl templateloader.Loader) (http.HandlerFunc, error) {
+	return tl.Load(
+		"layout",
+		func(t *template.Template, w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodGet {
+				http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+				return
+			}
+
+			err := t.Execute(w, viewmodels.Layout{
+				Title: "Add registry",
+			})
+
+			if err != nil {
+				l.Errorf("%+v", err)
+			}
+		},
+		"http/templates/registryform.tmpl", "http/templates/layout.tmpl", "http/templates/menu/menu-registries.tmpl",
+		)
 }
 
 func addRegistryPost(s registryfrontend.Storage) http.HandlerFunc {
-	// POST only
-	return nil
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			return
+		}
+
+		reg := registryfrontend.Registry{}
+
+		err := r.ParseForm()
+
+		if err != nil {
+			http.Error(w, errors.Wrap(err, http.StatusText(http.StatusBadRequest)).Error(), http.StatusBadRequest)
+			return
+		}
+
+		reg.Name = r.Form.Get("name")
+		reg.Url = r.Form.Get("url")
+		reg.User = r.Form.Get("user")
+		reg.Password = r.Form.Get("password")
+
+		err = s.Add(reg)
+
+		if err != nil {
+			http.Error(w, fmt.Sprintf("%+v", errors.WithStack(errors.Wrap(err, http.StatusText(http.StatusInternalServerError)))), http.StatusInternalServerError)
+			return
+		}
+
+		u := *r.URL
+		u.Path = "/"
+
+		http.Redirect(w, r, u.String(), http.StatusFound)
+	}
 }
 
 //func updateRegistryGet(s registryfrontend.Storage) http.HandlerFunc {
@@ -181,7 +226,7 @@ func addRegistryPost(s registryfrontend.Storage) http.HandlerFunc {
 //	return nil
 //}
 
-func removeRegistry(s registryfrontend.Storage) http.HandlerFunc {
+func removeRegistry(l *logrus.Logger, s registryfrontend.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
@@ -190,12 +235,14 @@ func removeRegistry(s registryfrontend.Storage) http.HandlerFunc {
 
 		reg := registryfrontend.Registry{}
 
-		err := json.NewDecoder(r.Body).Decode(&reg)
+		err := r.ParseForm()
 
 		if err != nil {
 			http.Error(w, errors.Wrap(err, http.StatusText(http.StatusBadRequest)).Error(), http.StatusBadRequest)
 			return
 		}
+
+		reg.Name = r.Form.Get("name")
 
 		err = s.Remove(reg)
 
@@ -204,7 +251,7 @@ func removeRegistry(s registryfrontend.Storage) http.HandlerFunc {
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
+		http.Redirect(w, r, "/", http.StatusFound)
 	}
 }
 
@@ -218,7 +265,7 @@ func removeRegistry(s registryfrontend.Storage) http.HandlerFunc {
 //	return nil
 //}
 
-func repoOverview(tl templateloader.Loader, s registryfrontend.Storage) (http.HandlerFunc, error) {
+func repoOverview(l *logrus.Logger, tl templateloader.Loader, s registryfrontend.Storage) (http.HandlerFunc, error) {
 	return tl.Load(
 		"layout",
 		func(t *template.Template, w http.ResponseWriter, r *http.Request) {
@@ -266,15 +313,14 @@ func repoOverview(tl templateloader.Loader, s registryfrontend.Storage) (http.Ha
 			})
 
 			if err != nil {
-				// TODO: Log this error
-				fmt.Println(err)
+				l.Errorf("%+v", err)
 			}
 		},
 		"http/templates/repos.tmpl", "http/templates/layout.tmpl", "http/templates/menu/menu-repos.tmpl",
 	)
 }
 
-func tagOverview(tl templateloader.Loader, s registryfrontend.Storage) (http.HandlerFunc, error) {
+func tagOverview(l *logrus.Logger, tl templateloader.Loader, s registryfrontend.Storage) (http.HandlerFunc, error) {
 	return tl.Load(
 		"layout",
 		func(t *template.Template, w http.ResponseWriter, r *http.Request) {
@@ -333,15 +379,14 @@ func tagOverview(tl templateloader.Loader, s registryfrontend.Storage) (http.Han
 			})
 
 			if err != nil {
-				// TODO: Log this error
-				fmt.Println(err)
+				l.Errorf("%+v", err)
 			}
 		},
 		"http/templates/tags.tmpl", "http/templates/layout.tmpl", "http/templates/menu/menu-tags.tmpl",
 	)
 }
 
-func tagDetail(tl templateloader.Loader, s registryfrontend.Storage) (http.HandlerFunc, error) {
+func tagDetail(l *logrus.Logger, tl templateloader.Loader, s registryfrontend.Storage) (http.HandlerFunc, error) {
 	return tl.Load(
 		"layout",
 		func(t *template.Template, w http.ResponseWriter, r *http.Request) {
@@ -366,19 +411,7 @@ func tagDetail(tl templateloader.Loader, s registryfrontend.Storage) (http.Handl
 				return
 			}
 
-			err = t.Execute(w, struct {
-				Title         string
-				Registry      string
-				Repository    string
-				Tag           string
-				Created       string
-				DockerVersion string
-				Size          string
-				Layers        int
-				User          string
-				Ports         string
-				Volumes       string
-			}{
+			err = t.Execute(w, viewmodels.TagDetails{
 				Title:         "Tag details",
 				Registry:      vars["registry"],
 				Repository:    vars["repo"],
@@ -393,8 +426,7 @@ func tagDetail(tl templateloader.Loader, s registryfrontend.Storage) (http.Handl
 			})
 
 			if err != nil {
-				// TODO: Log this error
-				fmt.Println(err)
+				l.Errorf("%+v", err)
 			}
 		},
 		"http/templates/tagdetails.tmpl", "http/templates/layout.tmpl", "http/templates/menu/menu-tag-details.tmpl",

@@ -1,0 +1,47 @@
+{{define "content"}}
+<div class="container-fluid">
+    <div class="col-sm">
+        <form method="post">
+            <div class="row">
+                <label for="name">Name</label>
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text" id="name-addon">@</span>
+                    </div>
+                    <input type="text" class="form-control" value="" aria-label="Name" id="name" name="name" aria-describedby="name-addon" >
+                </div>
+            </div>
+            <div class="row">
+                <label for="url">URL</label>
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text" id="url-addon">@</span>
+                    </div>
+                    <input type="url" class="form-control" value="" aria-label="URL" id="url" name="url" aria-describedby="url-addon" >
+                </div>
+            </div>
+            <div class="row">
+                <label for="user">User (optional)</label>
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text" id="user-addon">@</span>
+                    </div>
+                    <input type="text" class="form-control" value="" aria-label="User" id="user" name="user" aria-describedby="user-addon" >
+                </div>
+            </div>
+            <div class="row">
+                <label for="password">Password (optional)</label>
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text" id="password-addon">@</span>
+                    </div>
+                    <input type="password" class="form-control" value="" aria-label="Password" id="password" name="password" aria-describedby="password-addon" >
+                </div>
+            </div>
+            <div class="row">
+                <input type="submit">
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}

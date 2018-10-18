@@ -26,11 +26,17 @@
                     {{.NumberOfRepos}}
                 </td>
                 <td>
-                    None
+                    <form method="post" action="remove_registry">
+                        <input type="hidden" name="name" value="{{.Name}}">
+                        <input type="submit" value="delete">
+                    </form>
                 </td>
             </tr>
     {{end}}
         </tbody>
     </table>
+    <div class="row">
+        <a href="/add_registry">Add new registry</a>
+    </div>
 </div>
 {{end}}
