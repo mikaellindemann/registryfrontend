@@ -9,7 +9,7 @@ While my version does not offer all of the same features, it has the benefit of 
 
 The source can be found at GitHub: [https://github.com/mikaellindemann/registryfrontend](https://github.com/mikaellindemann/registryfrontend).
 
-The images can be pulled from Docker Hub: [https://hub.docker.com/mikaellindemann/registryfrontend](https://hub.docker.com/mikaellindemann/registryfrontend).
+The images can be pulled from Docker Hub: [https://hub.docker.com/r/mikaellindemann/registry_frontend](https://hub.docker.com/r/mikaellindemann/registry_frontend).
 
 ## Features
 Currently, the frontend supports multiple docker registry v2 instances, that are publicly available or protected by Basic authentication.
