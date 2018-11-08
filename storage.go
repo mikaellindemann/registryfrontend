@@ -5,6 +5,6 @@ type Storage interface {
 	Registry(name string) (Registry, error)
 	Add(r Registry) error
 	Update(r Registry) error
-	Clear() error // ???
+	Clear() error
 	Remove(r Registry) error
 }

@@ -5,14 +5,14 @@ import (
 	"strings"
 )
 
-type basicTransport struct {
+type BasicAuthTransport struct {
 	Transport http.RoundTripper
 	URL       string
 	Username  string
 	Password  string
 }
 
-func (t *basicTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (t *BasicAuthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if strings.HasPrefix(req.URL.String(), t.URL) {
 		if t.Username != "" || t.Password != "" {
 			req.SetBasicAuth(t.Username, t.Password)
@@ -22,8 +22,8 @@ func (t *basicTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return resp, err
 }
 
-func NewBasicAuthRoundTripper(url, user, password string) http.RoundTripper {
-	return &basicTransport{
+func NewBasicAuthRoundTripper(url, user, password string) *BasicAuthTransport {
+	return &BasicAuthTransport{
 		Transport: http.DefaultTransport,
 		URL:       url,
 		Username:  user,

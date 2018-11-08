@@ -18,17 +18,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Server interface {
-	Start()
-	Shutdown() error
-}
-
-type server struct {
+type Server struct {
 	s http.Server
 	l *logrus.Logger
 }
 
-func (s *server) Start() {
+// Start makes the Server available.
+// The server will run in a separate goroutine, and this function will return immediately.
+func (s *Server) Start() {
 	go func() {
 		err := s.s.ListenAndServe()
 
@@ -39,7 +36,9 @@ func (s *server) Start() {
 	s.l.WithField("address", s.s.Addr).Infof("Now listenening on %s.", s.s.Addr)
 }
 
-func (s *server) Shutdown() error {
+// Shutdown will make the server unreachable.
+// The goroutine created in Start, will have stopped running when this function returns.
+func (s *Server) Shutdown() error {
 	t := time.Now()
 	defer func() {
 		e := time.Since(t)
@@ -51,14 +50,14 @@ func (s *server) Shutdown() error {
 	return s.s.Shutdown(ctx)
 }
 
-func must(h http.HandlerFunc, err error) http.HandlerFunc {
-	if err != nil {
-		panic(err)
+func NewServer(l *logrus.Logger, t templateloader.Loader, s registryfrontend.Storage) *Server {
+	must := func(h http.HandlerFunc, err error) http.HandlerFunc {
+		if err != nil {
+			panic(err)
+		}
+		return h
 	}
-	return h
-}
 
-func NewServer(l *logrus.Logger, t templateloader.Loader, s registryfrontend.Storage) Server {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/", must(overview(l, t, s))).Methods(http.MethodGet)
@@ -67,14 +66,7 @@ func NewServer(l *logrus.Logger, t templateloader.Loader, s registryfrontend.Sto
 	router.HandleFunc("/add_registry", must(addRegistryGet(l, t))).Methods(http.MethodGet)
 	router.HandleFunc("/add_registry", addRegistryPost(s)).Methods(http.MethodPost)
 
-	//router.HandleFunc("/update_registry", updateRegistryGet(s)).Methods(http.MethodGet)
-	//router.HandleFunc("/update_registry", updateRegistryPost(s)).Methods(http.MethodPost)
-
-	router.HandleFunc("/remove_registry", removeRegistry(l, s)).Methods(http.MethodPost)
-
-	//router.HandleFunc("/delete_repo", deleteRepo(s)).Methods(http.MethodPost)
-
-	//router.HandleFunc("/delete_tag", deleteTag(s)).Methods(http.MethodPost)
+	router.HandleFunc("/remove_registry", removeRegistry(s)).Methods(http.MethodPost)
 
 	router.HandleFunc("/registry/{registry}", must(repoOverview(l, t, s))).Methods(http.MethodGet)
 
@@ -82,7 +74,7 @@ func NewServer(l *logrus.Logger, t templateloader.Loader, s registryfrontend.Sto
 
 	router.HandleFunc("/registry/{registry}/{repo}/{tag}", must(tagDetail(l, t, s))).Methods(http.MethodGet)
 
-	return &server{
+	return &Server{
 		s: http.Server{
 			Addr:    ":8080",
 			Handler: router,
@@ -178,7 +170,7 @@ func addRegistryGet(l *logrus.Logger, tl templateloader.Loader) (http.HandlerFun
 			}
 		},
 		"http/templates/registryform.tmpl", "http/templates/layout.tmpl", "http/templates/menu/menu-registries.tmpl",
-		)
+	)
 }
 
 func addRegistryPost(s registryfrontend.Storage) http.HandlerFunc {
@@ -216,17 +208,7 @@ func addRegistryPost(s registryfrontend.Storage) http.HandlerFunc {
 	}
 }
 
-//func updateRegistryGet(s registryfrontend.Storage) http.HandlerFunc {
-//	// GET Only
-//	return nil
-//}
-//
-//func updateRegistryPost(s registryfrontend.Storage) http.HandlerFunc {
-//	// POST Only
-//	return nil
-//}
-
-func removeRegistry(l *logrus.Logger, s registryfrontend.Storage) http.HandlerFunc {
+func removeRegistry(s registryfrontend.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
@@ -254,16 +236,6 @@ func removeRegistry(l *logrus.Logger, s registryfrontend.Storage) http.HandlerFu
 		http.Redirect(w, r, "/", http.StatusFound)
 	}
 }
-
-//func deleteRepo(s registryfrontend.Storage) http.HandlerFunc {
-//	// POST only
-//	return nil
-//}
-//
-//func deleteTag(s registryfrontend.Storage) http.HandlerFunc {
-//	// POST only
-//	return nil
-//}
 
 func repoOverview(l *logrus.Logger, tl templateloader.Loader, s registryfrontend.Storage) (http.HandlerFunc, error) {
 	return tl.Load(
