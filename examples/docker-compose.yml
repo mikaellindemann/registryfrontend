@@ -1,0 +1,25 @@
+version: "3.5"
+services:
+  registry:
+    image: registry:2
+    environment:
+      - REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY=/data
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    networks:
+      - reg
+
+  registry-frontend:
+    image: mikaellindemann/registry_frontend:latest
+    restart: unless-stopped
+    ports:
+      - "80:8080"
+    networks:
+      - reg
+    environment:
+      - "REGISTRY_NAME=registry"
+      - "REGISTRY_URL=http://registry:5000/"
+
+networks:
+  reg:
