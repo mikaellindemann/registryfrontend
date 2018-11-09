@@ -33,7 +33,9 @@ func (r Registry) Repositories(ctx context.Context) ([]string, error) {
 
 		res = append(res, repos[:n]...)
 
-		last = repos[n-1]
+		if n != 0 {
+			last = repos[n-1]
+		}
 	}
 
 	return res, nil
