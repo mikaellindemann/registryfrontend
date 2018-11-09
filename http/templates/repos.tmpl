@@ -11,7 +11,7 @@
     <tbody>
     {{range .Repositories}}
         <tr>
-            <th scope="row"><a href="{{$.Registry}}/{{.Name}}">{{.Name}}</a></td>
+            <th scope="row"><a href="{{$.Registry}}/{{.UrlName}}">{{.Name}}</a></td>
             <td>{{.NumberOfTags}}</td>
             <td>None</td>
         </tr>

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"sort"
 	"time"
 
@@ -274,6 +275,7 @@ func repoOverview(l *logrus.Logger, tl templateloader.Loader, s registryfrontend
 
 				reps = append(reps, viewmodels.Repository{
 					Name:         repo,
+					UrlName:      template.URLQueryEscaper(template.URLQueryEscaper(repo)),
 					NumberOfTags: len(ti),
 				})
 			}
@@ -310,7 +312,14 @@ func tagOverview(l *logrus.Logger, tl templateloader.Loader, s registryfrontend.
 				return
 			}
 
-			ts, err := reg.Tags(r.Context(), vars["repo"])
+			repoName, err := url.PathUnescape(vars["repo"])
+
+			if err != nil {
+				http.Error(w, errors.Wrap(err, http.StatusText(http.StatusBadRequest)).Error(), http.StatusBadRequest)
+				return
+			}
+
+			ts, err := reg.Tags(r.Context(), repoName)
 
 			if err != nil {
 				http.Error(w, errors.Wrap(err, http.StatusText(http.StatusNotFound)).Error(), http.StatusNotFound)
@@ -320,7 +329,7 @@ func tagOverview(l *logrus.Logger, tl templateloader.Loader, s registryfrontend.
 			tags := make([]viewmodels.TagOverviewInfo, 0, len(ts))
 
 			for _, tag := range ts {
-				ti, err := reg.Tag(r.Context(), vars["repo"], tag)
+				ti, err := reg.Tag(r.Context(), repoName, tag)
 
 				if err != nil {
 					http.Error(w, fmt.Sprintf("%+v", errors.WithStack(errors.Wrap(err, "failed fetching tag information"))), http.StatusInternalServerError)
@@ -344,10 +353,11 @@ func tagOverview(l *logrus.Logger, tl templateloader.Loader, s registryfrontend.
 			})
 
 			err = t.Execute(w, viewmodels.TagOverview{
-				Title:      "Tags",
-				Registry:   vars["registry"],
-				Repository: vars["repo"],
-				Tags:       tags,
+				Title:         "Tags",
+				Registry:      vars["registry"],
+				Repository:    repoName,
+				UrlRepository: template.URLQueryEscaper(vars["repo"]),
+				Tags:          tags,
 			})
 
 			if err != nil {
@@ -376,7 +386,14 @@ func tagDetail(l *logrus.Logger, tl templateloader.Loader, s registryfrontend.St
 				return
 			}
 
-			tag, err := reg.Tag(r.Context(), vars["repo"], vars["tag"])
+			repoName, err := url.PathUnescape(vars["repo"])
+
+			if err != nil {
+				http.Error(w, errors.Wrap(err, http.StatusText(http.StatusBadRequest)).Error(), http.StatusBadRequest)
+				return
+			}
+
+			tag, err := reg.Tag(r.Context(), repoName, vars["tag"])
 
 			if err != nil {
 				http.Error(w, errors.Wrap(err, http.StatusText(http.StatusNotFound)).Error(), http.StatusNotFound)
@@ -386,7 +403,8 @@ func tagDetail(l *logrus.Logger, tl templateloader.Loader, s registryfrontend.St
 			err = t.Execute(w, viewmodels.TagDetails{
 				Title:         "Tag details",
 				Registry:      vars["registry"],
-				Repository:    vars["repo"],
+				Repository:    repoName,
+				UrlRepository: template.URLQueryEscaper(vars["repo"]),
 				Tag:           vars["tag"],
 				Created:       tag.Created.Format("January 2 2006 15:04:05 "),
 				DockerVersion: tag.DockerVersion,

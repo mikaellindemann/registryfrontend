@@ -29,6 +29,5 @@ Registries added through the frontend, will currently not be persisted on restar
 
 ## Known issues/bugs
 * If multiple users are adding or removing registries in the same instance, the service might panic due to no serialized access to the in-memory storage.
-* If a registry has namespaced repositories, the frontend will treat the namespace as a repository, and the repository as a tag.
 
 Pull requests and issues are very welcome.

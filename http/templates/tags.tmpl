@@ -13,7 +13,7 @@
     <tbody>
     {{range .Tags}}
         <tr>
-            <th scope="row"><a href="{{$.Repository}}/{{.Name}}">{{.Name}}</a></th>
+            <th scope="row"><a href="{{$.UrlRepository}}/{{.Name}}">{{.Name}}</a></th>
             <td>{{.Created}}</td>
             <td>{{.Size}}</td>
             <td>{{.Layers}}</td>

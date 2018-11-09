@@ -8,8 +8,9 @@ type TagOverviewInfo struct {
 }
 
 type TagOverview struct {
-	Title      string
-	Registry   string
-	Repository string
-	Tags       []TagOverviewInfo
+	Title         string
+	Registry      string
+	Repository    string
+	UrlRepository string
+	Tags          []TagOverviewInfo
 }
