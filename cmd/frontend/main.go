@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/mikaellindemann/registryfrontend/storage"
 	"os"
 	"os/signal"
 	"strings"
@@ -30,7 +31,7 @@ func main() {
 		},
 	}
 
-	storage := registryfrontend.NewInMemoryStorage()
+	storage := storage.NewInMemoryStorage()
 
 	name := os.Getenv("REGISTRY_NAME")
 	url := os.Getenv("REGISTRY_URL")

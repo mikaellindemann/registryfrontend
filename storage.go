@@ -1,8 +1,8 @@
 package registryfrontend
 
 type Storage interface {
-	Registries() ([]Registry, error)
-	Registry(name string) (Registry, error)
+	Registries() ([]Client, error)
+	Registry(name string) (Client, error)
 	Add(r Registry) error
 	Update(r Registry) error
 	Clear() error

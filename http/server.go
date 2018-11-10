@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -10,31 +9,33 @@ import (
 	"sort"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/mikaellindemann/registryfrontend"
 	"github.com/mikaellindemann/registryfrontend/http/viewmodels"
 	"github.com/mikaellindemann/templateloader"
-
-	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
 type Server struct {
-	s http.Server
+	h http.Server
 	l *logrus.Logger
+	t templateloader.Loader
+	s registryfrontend.Storage
+	r *mux.Router
 }
 
 // Start makes the Server available.
 // The server will run in a separate goroutine, and this function will return immediately.
 func (s *Server) Start() {
 	go func() {
-		err := s.s.ListenAndServe()
+		err := s.h.ListenAndServe()
 
 		if err != http.ErrServerClosed {
 			panic(err)
 		}
 	}()
-	s.l.WithField("address", s.s.Addr).Infof("Now listenening on %s.", s.s.Addr)
+	s.l.WithField("address", s.h.Addr).Infof("Now listenening on %s.", s.h.Addr)
 }
 
 // Shutdown will make the server unreachable.
@@ -48,10 +49,10 @@ func (s *Server) Shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	return s.s.Shutdown(ctx)
+	return s.h.Shutdown(ctx)
 }
 
-func NewServer(l *logrus.Logger, t templateloader.Loader, s registryfrontend.Storage) *Server {
+func (s *Server) initRouter() {
 	must := func(h http.HandlerFunc, err error) http.HandlerFunc {
 		if err != nil {
 			panic(err)
@@ -59,29 +60,39 @@ func NewServer(l *logrus.Logger, t templateloader.Loader, s registryfrontend.Sto
 		return h
 	}
 
+	router := s.r
+
+	router.HandleFunc("/", must(overview(s.l, s.t, s.s))).Methods(http.MethodGet)
+
+	router.HandleFunc("/add_registry", must(s.addRegistryGet())).Methods(http.MethodGet)
+	router.HandleFunc("/add_registry", addRegistryPost(s.s)).Methods(http.MethodPost)
+
+	router.HandleFunc("/remove_registry", removeRegistry(s.s)).Methods(http.MethodPost)
+
+	router.HandleFunc("/registry/{registry}", must(repoOverview(s.l, s.t, s.s))).Methods(http.MethodGet)
+
+	router.HandleFunc("/registry/{registry}/{repo}", must(tagOverview(s.l, s.t, s.s))).Methods(http.MethodGet)
+
+	router.HandleFunc("/registry/{registry}/{repo}/{tag}", must(tagDetail(s.l, s.t, s.s))).Methods(http.MethodGet)
+}
+
+func NewServer(l *logrus.Logger, t templateloader.Loader, s registryfrontend.Storage) *Server {
 	router := mux.NewRouter()
+	router.KeepContext = true
 
-	router.HandleFunc("/", must(overview(l, t, s))).Methods(http.MethodGet)
-	router.HandleFunc("/test_connection", testConnection()).Methods(http.MethodPost)
-
-	router.HandleFunc("/add_registry", must(addRegistryGet(l, t))).Methods(http.MethodGet)
-	router.HandleFunc("/add_registry", addRegistryPost(s)).Methods(http.MethodPost)
-
-	router.HandleFunc("/remove_registry", removeRegistry(s)).Methods(http.MethodPost)
-
-	router.HandleFunc("/registry/{registry}", must(repoOverview(l, t, s))).Methods(http.MethodGet)
-
-	router.HandleFunc("/registry/{registry}/{repo}", must(tagOverview(l, t, s))).Methods(http.MethodGet)
-
-	router.HandleFunc("/registry/{registry}/{repo}/{tag}", must(tagDetail(l, t, s))).Methods(http.MethodGet)
-
-	return &Server{
-		s: http.Server{
-			Addr:    ":8080",
+	server := &Server{
+		h: http.Server{
+			Addr: ":8080",
 			Handler: router,
 		},
+		s: s,
+		t: t,
+		r: router,
 		l: l,
 	}
+
+	server.initRouter()
+	return server
 }
 
 func overview(l *logrus.Logger, tl templateloader.Loader, s registryfrontend.Storage) (http.HandlerFunc, error) {
@@ -106,8 +117,8 @@ func overview(l *logrus.Logger, tl templateloader.Loader, s registryfrontend.Sto
 				repos, err := reg.Repositories(r.Context())
 
 				regs = append(regs, viewmodels.Registry{
-					Name:          reg.Name,
-					URL:           reg.Url,
+					Name:          reg.Name(),
+					URL:           reg.URL(),
 					Online:        err == nil,
 					NumberOfRepos: len(repos),
 				})
@@ -126,35 +137,8 @@ func overview(l *logrus.Logger, tl templateloader.Loader, s registryfrontend.Sto
 	)
 }
 
-func testConnection() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-			return
-		}
-
-		reg := registryfrontend.Registry{}
-
-		err := json.NewDecoder(r.Body).Decode(&reg)
-
-		if err != nil {
-			http.Error(w, errors.Wrap(err, http.StatusText(http.StatusBadRequest)).Error(), http.StatusBadRequest)
-			return
-		}
-
-		_, err = reg.Repositories(r.Context())
-
-		if err != nil {
-			http.Error(w, errors.Wrap(err, http.StatusText(http.StatusBadRequest)).Error(), http.StatusBadRequest)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-	}
-}
-
-func addRegistryGet(l *logrus.Logger, tl templateloader.Loader) (http.HandlerFunc, error) {
-	return tl.Load(
+func (s *Server) addRegistryGet() (http.HandlerFunc, error) {
+	return s.t.Load(
 		"layout",
 		func(t *template.Template, w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodGet {
@@ -167,7 +151,7 @@ func addRegistryGet(l *logrus.Logger, tl templateloader.Loader) (http.HandlerFun
 			})
 
 			if err != nil {
-				l.Errorf("%+v", err)
+				s.l.Errorf("%+v", err)
 			}
 		},
 		"http/templates/registryform.tmpl", "http/templates/layout.tmpl", "http/templates/menu/menu-registries.tmpl",
@@ -282,7 +266,7 @@ func repoOverview(l *logrus.Logger, tl templateloader.Loader, s registryfrontend
 
 			err = t.Execute(w, viewmodels.RegistryDetail{
 				Title:        "Repositories",
-				Registry:     reg.Name,
+				Registry:     reg.Name(),
 				Repositories: reps,
 			})
 
