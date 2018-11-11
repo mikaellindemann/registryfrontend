@@ -11,7 +11,7 @@ services:
       - reg
 
   registry-frontend:
-    image: mikaellindemann/registry_frontend:latest
+    image: mikaellindemann/registryfrontend:latest
     restart: unless-stopped
     ports:
       - "80:8080"
