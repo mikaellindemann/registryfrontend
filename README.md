@@ -27,6 +27,8 @@ Note that the registry will only be added if the name contains only legal charac
 
 Registries added through the frontend, will currently not be persisted on restart of the frontend.
 
+it is possible to disable the add registry and remove registry features by specifying any value for the enviroment variables `REGISTRY_DISABLE_ADD_REMOVE`.
+
 ## Known issues/bugs
 * If multiple users are adding or removing registries in the same instance, the service might panic due to no serialized access to the in-memory storage.
 
