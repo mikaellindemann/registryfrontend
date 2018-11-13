@@ -33,6 +33,11 @@ func main() {
 
 	st := storage.NewInMemoryStorage()
 
+	addRemoveDisabled := false
+	if _, ok := os.LookupEnv("REGISTRY_DISABLE_ADD_REMOVE"); ok {
+		addRemoveDisabled = true
+	}
+
 	name := os.Getenv("REGISTRY_NAME")
 	url := os.Getenv("REGISTRY_URL")
 	user := os.Getenv("REGISTRY_AUTH_BASIC_USER")
@@ -57,7 +62,7 @@ func main() {
 		log.Debugln("Preloading templates")
 	}
 
-	s := http.NewServer(log, t, st)
+	s := http.NewServer(log, t, st, !addRemoveDisabled)
 	s.Start()
 
 	<-stop

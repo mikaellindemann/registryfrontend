@@ -8,6 +8,7 @@ type Registry struct {
 }
 
 type Overview struct {
-	Title      string
-	Registries []Registry
+	Title            string
+	Registries       []Registry
+	AddRemoveEnabled bool
 }

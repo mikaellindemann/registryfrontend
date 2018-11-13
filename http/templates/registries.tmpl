@@ -26,13 +26,18 @@
                     {{.NumberOfRepos}}
                 </td>
                 <td>
+                    {{if $.AddRemoveEnabled}}
                     <form method="post" action="remove_registry">
                         <input type="hidden" name="name" value="{{.Name}}">
                         <input type="submit" value="Delete" class="btn btn-danger" >
                     </form>
+                    {{else}}
+                    None
+                    {{end}}
                 </td>
             </tr>
     {{end}}
+    {{if .AddRemoveEnabled}}
             <tr>
                 <th></th>
                 <td></td>
@@ -41,6 +46,8 @@
                 <td>
                     <a href="/add_registry" class="btn btn-primary">Add new registry</a>
                 </td>
+            </tr>
+    {{end}}
         </tbody>
     </table>
 </div>

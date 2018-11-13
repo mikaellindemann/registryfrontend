@@ -18,11 +18,12 @@ import (
 )
 
 type Server struct {
-	h http.Server
-	l *logrus.Logger
-	t templateloader.Loader
-	s registryfrontend.Storage
-	r *mux.Router
+	h                http.Server
+	l                *logrus.Logger
+	t                templateloader.Loader
+	s                registryfrontend.Storage
+	r                *mux.Router
+	addRemoveEnabled bool
 }
 
 // Start makes the Server available.
@@ -62,12 +63,14 @@ func (s *Server) initRouter() {
 
 	router := s.r
 
-	router.HandleFunc("/", must(overview(s.l, s.t, s.s))).Methods(http.MethodGet)
+	router.HandleFunc("/", must(s.overview())).Methods(http.MethodGet)
 
-	router.HandleFunc("/add_registry", must(s.addRegistryGet())).Methods(http.MethodGet)
-	router.HandleFunc("/add_registry", addRegistryPost(s.s)).Methods(http.MethodPost)
+	if s.addRemoveEnabled {
+		router.HandleFunc("/add_registry", must(s.addRegistryGet())).Methods(http.MethodGet)
+		router.HandleFunc("/add_registry", addRegistryPost(s.s)).Methods(http.MethodPost)
 
-	router.HandleFunc("/remove_registry", removeRegistry(s.s)).Methods(http.MethodPost)
+		router.HandleFunc("/remove_registry", removeRegistry(s.s)).Methods(http.MethodPost)
+	}
 
 	router.HandleFunc("/registry/{registry}", must(repoOverview(s.l, s.t, s.s))).Methods(http.MethodGet)
 
@@ -76,7 +79,7 @@ func (s *Server) initRouter() {
 	router.HandleFunc("/registry/{registry}/{repo}/{tag}", must(tagDetail(s.l, s.t, s.s))).Methods(http.MethodGet)
 }
 
-func NewServer(l *logrus.Logger, t templateloader.Loader, s registryfrontend.Storage) *Server {
+func NewServer(l *logrus.Logger, t templateloader.Loader, s registryfrontend.Storage, addRemoveEnabled bool) *Server {
 	router := mux.NewRouter()
 
 	server := &Server{
@@ -84,18 +87,19 @@ func NewServer(l *logrus.Logger, t templateloader.Loader, s registryfrontend.Sto
 			Addr:    ":8080",
 			Handler: router,
 		},
-		s: s,
-		t: t,
-		r: router,
-		l: l,
+		s:                s,
+		t:                t,
+		r:                router,
+		l:                l,
+		addRemoveEnabled: addRemoveEnabled,
 	}
 
 	server.initRouter()
 	return server
 }
 
-func overview(l *logrus.Logger, tl templateloader.Loader, s registryfrontend.Storage) (http.HandlerFunc, error) {
-	return tl.Load(
+func (s *Server) overview() (http.HandlerFunc, error) {
+	return s.t.Load(
 		"layout",
 		func(t *template.Template, w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodGet {
@@ -103,7 +107,7 @@ func overview(l *logrus.Logger, tl templateloader.Loader, s registryfrontend.Sto
 				return
 			}
 
-			rs, err := s.Registries()
+			rs, err := s.s.Registries()
 
 			if err != nil {
 				http.Error(w, errors.Wrap(err, http.StatusText(http.StatusInternalServerError)).Error(), http.StatusInternalServerError)
@@ -124,12 +128,13 @@ func overview(l *logrus.Logger, tl templateloader.Loader, s registryfrontend.Sto
 			}
 
 			err = t.Execute(w, viewmodels.Overview{
-				Title:      "Registries",
-				Registries: regs,
+				Title:            "Registries",
+				Registries:       regs,
+				AddRemoveEnabled: s.addRemoveEnabled,
 			})
 
 			if err != nil {
-				l.Errorf("%+v", err)
+				s.l.Errorf("%+v", err)
 			}
 		},
 		"http/templates/registries.tmpl", "http/templates/layout.tmpl", "http/templates/menu/menu-registries.tmpl",
