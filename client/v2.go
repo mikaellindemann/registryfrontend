@@ -16,8 +16,8 @@ import (
 
 type V2Client struct {
 	name string
-	url string
-	c http.Client
+	url  string
+	c    http.Client
 }
 
 func MakeV2(name, baseUri string) (*V2Client, error) {
@@ -40,14 +40,14 @@ func MakeV2BasicAuth(name, baseUri, user, password string) (*V2Client, error) {
 	return newV2(name, baseUri, &baseUrlRoundTripper{
 		u.Scheme,
 		u.Host,
-		&basicAuthRoundTripper{baseUri, user, password, http.DefaultTransport },
+		&basicAuthRoundTripper{baseUri, user, password, http.DefaultTransport},
 	}), nil
 }
 
-func newV2(name, url string, tripper http.RoundTripper) (*V2Client) {
+func newV2(name, url string, tripper http.RoundTripper) *V2Client {
 	return &V2Client{
 		name: name,
-		url: url,
+		url:  url,
 		c: http.Client{
 			Transport: tripper,
 		},
@@ -267,7 +267,6 @@ func (v *V2Client) Tag(ctx context.Context, repository, tag string) (*registryfr
 		Volumes:       keys(info.Config.Volumes),
 	}, nil
 }
-
 
 func (v *V2Client) BlobSize(ctx context.Context, repository string, d digest.Digest) (int64, error) {
 	u := fmt.Sprintf("/v2/%s/blobs/%s", repository, d.String())

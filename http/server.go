@@ -78,11 +78,10 @@ func (s *Server) initRouter() {
 
 func NewServer(l *logrus.Logger, t templateloader.Loader, s registryfrontend.Storage) *Server {
 	router := mux.NewRouter()
-	router.KeepContext = true
 
 	server := &Server{
 		h: http.Server{
-			Addr: ":8080",
+			Addr:    ":8080",
 			Handler: router,
 		},
 		s: s,

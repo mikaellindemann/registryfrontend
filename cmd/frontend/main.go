@@ -31,7 +31,7 @@ func main() {
 		},
 	}
 
-	storage := storage.NewInMemoryStorage()
+	st := storage.NewInMemoryStorage()
 
 	name := os.Getenv("REGISTRY_NAME")
 	url := os.Getenv("REGISTRY_URL")
@@ -39,7 +39,7 @@ func main() {
 	password := os.Getenv("REGISTRY_AUTH_BASIC_PASSWORD")
 
 	if name != "" && url != "" {
-		storage.Add(registryfrontend.Registry{
+		st.Add(registryfrontend.Registry{
 			Name:     name,
 			Url:      url,
 			User:     user,
@@ -57,7 +57,7 @@ func main() {
 		log.Debugln("Preloading templates")
 	}
 
-	s := http.NewServer(log, t, storage)
+	s := http.NewServer(log, t, st)
 	s.Start()
 
 	<-stop

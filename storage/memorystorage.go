@@ -3,9 +3,8 @@ package storage
 import (
 	"github.com/mikaellindemann/registryfrontend"
 	"github.com/mikaellindemann/registryfrontend/client"
-	"strings"
-
 	"github.com/pkg/errors"
+	"regexp"
 )
 
 type MemoryStorage map[string]registryfrontend.Registry
@@ -56,7 +55,7 @@ func (m *MemoryStorage) Registry(name string) (registryfrontend.Client, error) {
 }
 
 func (m *MemoryStorage) Add(r registryfrontend.Registry) error {
-	if hasIllegalCharacters(r.Name) {
+	if isInvalidName(r.Name) {
 		return ErrIllegalName
 	}
 	(*m)[r.Name] = r
@@ -77,12 +76,8 @@ func (m *MemoryStorage) Remove(r registryfrontend.Registry) error {
 	return nil
 }
 
-func hasIllegalCharacters(name string) bool {
-	name = strings.ToLower(name)
-	for i := range name {
-		if !((name[i] >= 'a' && name[i] <= 'z') || (name[i] >= '0' && name[i] <= '9')) {
-			return true
-		}
-	}
-	return false
+func isInvalidName(name string) bool {
+	matched, err := regexp.MatchString("^[a-zA-Z0-9\\-_]+$", name)
+
+	return err != nil || !matched
 }
