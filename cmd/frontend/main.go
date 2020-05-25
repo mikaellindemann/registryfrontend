@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/mikaellindemann/registryfrontend/storage"
 	"os"
 	"os/signal"
 	"strings"
@@ -9,16 +8,13 @@ import (
 
 	"github.com/mikaellindemann/registryfrontend"
 	"github.com/mikaellindemann/registryfrontend/http"
+	"github.com/mikaellindemann/registryfrontend/storage"
 	"github.com/mikaellindemann/templateloader"
 
 	"github.com/sirupsen/logrus"
 )
 
 func main() {
-	stop := make(chan os.Signal)
-
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-
 	log := &logrus.Logger{
 		Level: logrus.DebugLevel,
 		Out:   os.Stderr,
@@ -64,6 +60,9 @@ func main() {
 
 	s := http.NewServer(log, t, st, !addRemoveDisabled)
 	s.Start()
+
+	stop := make(chan os.Signal)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
 	<-stop
 

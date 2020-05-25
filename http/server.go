@@ -320,8 +320,16 @@ func tagOverview(l *logrus.Logger, tl templateloader.Loader, s registryfrontend.
 				ti, err := reg.Tag(r.Context(), repoName, tag)
 
 				if err != nil {
-					http.Error(w, fmt.Sprintf("%+v", errors.WithStack(errors.Wrap(err, "failed fetching tag information"))), http.StatusInternalServerError)
-					return
+					var zeroTime time.Time
+					tags = append(tags, viewmodels.TagOverviewInfo{
+						Name:    tag,
+						Created: zeroTime.Format("January 2 2006 15:04:05"),
+						Size:    "Unknown",
+						Layers:  -1,
+					})
+					// http.Error(w, fmt.Sprintf("%+v", errors.WithStack(errors.Wrap(err, "failed fetching tag information"))), http.StatusInternalServerError)
+					// return
+					continue
 				}
 
 				tags = append(tags, viewmodels.TagOverviewInfo{
